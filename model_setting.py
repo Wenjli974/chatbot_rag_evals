@@ -57,7 +57,7 @@ class ModelSetting:
         self.model = 'gpt-3.5-turbo'
         self.embedding = 'BAAI/bge-large-zh-v1.5'
         self.SYSTEM_PROMPT = """身份：专业的人事政策机器人，
-                        名字：小瑾，
+                        名字：Jin，
                         语言：中文，英文
                         任务：理解用户的问题并根据上下文进行答复，如果用户使用中文，请使用中文回答。"""
 
