@@ -27,7 +27,7 @@ from llama_index.core.callbacks import LlamaDebugHandler, CallbackManager
 
 
 class ModelSetting:
-    def __init__(self, config_path='config.ini', env_path='.env'):
+    def __init__(self, config_path='config.ini'):
         self.test_df = None
         self.testset = None
         self.system_prompt_input = None
@@ -45,10 +45,11 @@ class ModelSetting:
         self.embedding_model = None
         self.langchain_model = None
         self.langchain_embed_model = None
-        load_dotenv(env_path)
         config = ConfigParser()
         config.read(config_path)
         self.RAG_File = config['RAG_File']
+        self.env_path = config['Env_Path']['env_path']+'.env'
+        _=load_dotenv(self.env_path)
         self.api_version = os.getenv('api_version')
         self.api_key = os.getenv('api_key')
         self.input_dir = self.RAG_File["RAG_input_directory"]
@@ -188,7 +189,7 @@ class ModelSetting:
             query_str
         )
         print(self.response)
-        return self.response
+        return self.query_engine
 
     def built_chatbot(self, system_prompt=None, user_prompt='Hi'):
         from openai import OpenAI
