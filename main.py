@@ -4,7 +4,10 @@ import os
 
 from model_setting import ModelSetting
 from rag_evaluation import RAGEvaluation
-prompt="今天天气如何"
+from trulens_eval import Tru
+prompt="4月29号可以申请WFH吗"
+import nest_asyncio
+
 
 
 def task1():
@@ -14,13 +17,12 @@ def task1():
     task.build_nodeparser()
     task.load_indexstore()
     task.build_retriever(query=prompt)
-    query_engine=task.build_queryengine(query=prompt)
+    task.build_queryengine(query=prompt)
     print(type(task.query_engine))
-    eval=RAGEvaluation(app_id="rag v1.0")
-    import nest_asyncio
-    nest_asyncio.apply()
+    print("***********")
+    eval=RAGEvaluation(tru,app_id="App_3")
     eval.calc_metrics()
-    eval.bulid_evaluate(task.query_engine)
+    eval.bulid_evaluate(tru,task.query_engine)
 
     
     print("end")
@@ -32,6 +34,7 @@ def task2():
     task.load_documents()
     task.build_nodeparser()
     task.build_indexstore()
+    #task.load_indexstore()
     task.build_retriever(query=prompt)
     res=task.build_queryengine(query=prompt)
     # prompt = "你叫什么名字?"
@@ -59,4 +62,6 @@ Is it normal to find parts of AI challenging??"""
     print("end")
 
 if __name__ == '__main__':
-    task1()
+    # tru = Tru(database_url='sqlite:///rag.db')
+    # tru.reset_database()
+    task2()

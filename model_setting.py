@@ -43,24 +43,24 @@ class ModelSetting:
         self.documents = None
         self.llm_model = None
         self.embedding_model = None
-        self.langchain_model = None
-        self.langchain_embed_model = None
         config = ConfigParser()
         config.read(config_path)
-        self.RAG_File = config['RAG_File']
+        self.File = config['File']
         self.env_path = config['Env_Path']['env_path']+'.env'
         _=load_dotenv(self.env_path)
         self.api_version = os.getenv('api_version')
         self.api_key = os.getenv('api_key')
-        self.input_dir = self.RAG_File["RAG_input_directory"]
-        self.output_dir = self.RAG_File["RAG_output_directory"]
-        self.index_dir = self.RAG_File['RAG_index_directory']
+        self.input_dir = self.File["input_directory"]
+        self.output_dir = self.File["output_directory"]
+        self.index_dir = self.File['index_directory']
         self.model = 'gpt-3.5-turbo'
         self.embedding = 'BAAI/bge-large-zh-v1.5'
         self.SYSTEM_PROMPT = """身份：专业的人事政策机器人，
                         名字：Jin，
                         语言：中文，英文
-                        任务：理解用户的问题并根据上下文进行答复，如果用户使用中文，请使用中文回答。"""
+                        任务：理解用户的问题并根据上下文进行答复，如果用户使用中文，请使用中文回答。
+                        注意：有些问题需要你结合不同的知识点进行推理，比如某天能否居家办公/WFH/wfh，请先判断该天所在的当周有多少天是假期，然后计算当周的剩余工作天数，并是否可以申请居家办公。
+                        最后请你深呼吸，认真思考，现在开始回答问题把。"""
 
     def initialize_model(self):
         print("model initializing")
@@ -77,16 +77,6 @@ class ModelSetting:
 
         Settings.llm = self.llm_model
         Settings.embed_model = self.embedding_model
-
-        self.langchain_model = ChatOpenAI(
-            model=self.model,
-            temperature=1.0,
-            api_key=self.api_key,
-        )
-
-        self.langchain_embed_model = HuggingFaceEmbeddings(
-            model_name=self.embedding,
-        )
 
         print("model initialized")
 
@@ -108,7 +98,7 @@ class ModelSetting:
     def build_nodeparser(self):
         # create the sentence window node parser
         self.node_parser = SentenceWindowNodeParser.from_defaults(
-            window_size=3,
+            window_size=5,
             window_metadata_key="window",
             original_text_metadata_key="original_text",
         )
@@ -118,8 +108,8 @@ class ModelSetting:
         self.sentence_context = ServiceContext.from_defaults(
             llm=self.llm_model,
             embed_model=self.embedding_model,
-            #node_parser=self.node_parser,
-            chunk_size=248,
+            node_parser=self.node_parser,
+            chunk_size=500,
             chunk_overlap=20,
         )
         if os.path.exists("./Vector_indexes"):
@@ -134,7 +124,7 @@ class ModelSetting:
             llm=self.llm_model,
             embed_model=self.embedding_model,
             node_parser=self.node_parser,
-            chunk_size=248,
+            chunk_size=500,
             chunk_overlap=20,
         )
         if os.path.exists("./Vector_indexes"):
@@ -142,22 +132,22 @@ class ModelSetting:
                                                  service_context=self.sentence_context)
 
     def build_retriever(self, query):
-        self.retriever = VectorIndexRetriever(index=self.index, similarity_top_k=3)
+        self.vector_retriever = VectorIndexRetriever(index=self.index, similarity_top_k=3)
         # self.bm25_retriever = BM25Retriever.from_defaults(
         #     docstore=self.index.docstore, similarity_top_k=2
         # )
-        # self.retriever = QueryFusionRetriever(
-        #     [self.retriever],
-        #     similarity_top_k=5,
-        #     num_queries=1,  # set this to 1 to disable query generation
-        #     mode = "reciprocal_rerank",
-        #     use_async=True,
-        #     verbose=True,
-        # )
+        self.retriever = QueryFusionRetriever(
+            [self.vector_retriever],
+            similarity_top_k=3,
+            num_queries=3,  # set this to 1 to disable query generation
+            mode = "reciprocal_rerank",
+            use_async=True,
+            verbose=True,
+        )
         print("Retriever builded")
         self.retrievals = self.retriever.retrieve(query)
         for node in self.retrievals:
-            print(f"Score: {node.score:.2f} - {node.text}\n-----\n")
+            print(f"Score: {node.score:.3f} - {node.text}\n-----\n")
 
     def build_queryengine(self, query):
         query_str = query
@@ -177,11 +167,11 @@ class ModelSetting:
             streaming=False,
         )
 
-        self.query_engine = self.index.as_query_engine(
-        #RetrieverQueryEngine(
+        self.query_engine = RetrieverQueryEngine(
+        #self.index.as_query_engine(
+            retriever=self.retriever,
             response_synthesizer=self.response_synthesizer,
-           # retriever=self.retriever,
-            similarity_top_k =3,
+            #similarity_top_k =3,
             node_postprocessors=[self.postproc,self.rerank],
         )
 
